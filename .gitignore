@@ -6,4 +6,5 @@ Temp
 *.csproj
 *.sln
 .vs
+.vsconfig
 
