@@ -47,14 +47,11 @@ public class GrassCamera : MonoBehaviour
     {
         if (enablePost && targetMaterial != null)
         {
-            //targetCamera.previousViewProjectionMatrix
-            Matrix4x4 matrixVP =  GL.GetGPUProjectionMatrix(targetCamera.projectionMatrix, true) * targetCamera.worldToCameraMatrix;
+            Matrix4x4 matrixVP = targetCamera.projectionMatrix * targetCamera.worldToCameraMatrix;
             Matrix4x4 invVP = matrixVP.inverse;
             targetMaterial.SetMatrix("_InvVP", invVP);
-            targetMaterial.SetColor("_ResultColor", ResultColor);
-            targetTexture.wrapMode = TextureWrapMode.Clamp;
+
             Graphics.Blit(source, destination, targetMaterial);
-            Graphics.Blit(destination, targetTexture);
         }
         else
         {

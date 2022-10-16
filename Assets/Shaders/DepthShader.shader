@@ -38,7 +38,7 @@ Shader "Custom/DepthGrayscale"
             
             float4 frag(FFragIn i) : COLOR
             {
-                float depth = tex2D(_CameraDepthTexture,i.UV).r;
+                float depth = tex2D(_CameraDepthTexture,i.UV).x;
                 float4 proj = float4(i.UV * 2 - 1, depth * 2 - 1, 1);
                 float4 positionW = mul(_InvVP, proj);
                 positionW = positionW / positionW.w;
@@ -52,7 +52,7 @@ Shader "Custom/DepthGrayscale"
                 result.y = positionW.y;
                 result.z = positionW.z;
                 result.w = depth;
-                return positionW;
+                return result;
             }
             ENDCG
         }
