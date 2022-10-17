@@ -41,7 +41,7 @@ Shader "Custom/DepthGrayscale"
                 float depth = tex2D(_CameraDepthTexture,i.UV).x;
                 float4 proj = float4(i.UV * 2 - 1, depth * 2 - 1, 1);
                 float4 positionW = mul(_InvVP, proj);
-                positionW = positionW / positionW.w;
+                //positionW = positionW / positionW.w;
                 
                 float4 result;
                 // result.x = depth;
