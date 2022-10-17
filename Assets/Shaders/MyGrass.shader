@@ -1,12 +1,13 @@
 // 使用该Shader 的前提是 Scale 都是 1，否则效果是错误的
-Shader "MyShader/MyGrass"
+Shader "MyShader/Grass"
 {
     Properties
     {
         [Header(Grass Properties)]
+        [IntRange]
         _TessDegree("Tess Degree", Range(0.1, 10)) = 1
-        _GrassWidth("Grass Width", Range(0.1, 2)) = 1
-        _GrassHeight("Grass Height", Range(0.5, 5)) = 1
+        _GrassWidth("Grass Width", Range(0.01, 1)) = 1
+        _GrassHeight("Grass Height", Range(0.1, 2)) = 1
         _BowDegree("Bow Degree", Range(-0.25,0.25)) = 0
 
         [Header(Color Properties)]
@@ -27,6 +28,10 @@ Shader "MyShader/MyGrass"
         [Header(Trample)]
         _TrampleTexture("Trample Texture", 2D) = "white"{}
         _TrampleDegree("Trample Degree", Range(-1, 1)) = 0.5
+
+        [Header(Other Temp)]
+        [IntRange]
+        _OffShadowAttenuation("Turn Off Shadow Attenuation", Range(0,1)) = 0
 
     }
 
@@ -63,12 +68,12 @@ Shader "MyShader/MyGrass"
         {
             float4 pos : SV_position;
             float4 color : TEXCOORD0;
-    #if UNITY_PASS_FORWARDBASE		
-            SHADOW_COORDS(1)
-    #endif
+            #if UNITY_PASS_FORWARDBASE		
+                SHADOW_COORDS(1)
+            #endif
         };
 
-        float _TessDegree;
+        int _TessDegree;
         float _BowDegree;
 
         float _GrassWidth;
@@ -90,6 +95,7 @@ Shader "MyShader/MyGrass"
         float4 _TrampleTexture_ST;
         float _TrampleDegree;
 
+        int _OffShadowAttenuation;
 
 
         FVertexOut vertexShaderFunc(FVertexIn inPoint)
@@ -176,19 +182,19 @@ Shader "MyShader/MyGrass"
             float3 ctrlWindAxis = float3(_CtrlWindDirectionX, 0, _CtrlWindDirectionZ);
             float2 windDir = normalize(float2(ctrlWindAxis.x, ctrlWindAxis.z));
             // 如果想要一波一波的那种效果可以用这个
-            //float windStrength =  abs(sin(UNITY_PI * (baseUV.x * windDir.x  + baseUV.y * windDir.y))) * _CtrlWindStrength;
-            float2 ctrlWind = windDir * _CtrlWindStrength * 0.04;
+            //float windStrength =  abs(sin(_Time.y * UNITY_PI * (baseUV.x * windDir.x  + baseUV.y * windDir.y) * _CtrlWindStrength));
+            float2 ctrlWind = windDir * 0.04 * _CtrlWindStrength;// * windStrength;
 
 
             // 踩踏效果的处理矩阵
-            float4 minuv = float4(TRANSFORM_TEX(float2(0,0),_TrampleTexture), 0, 0);
-            float4 maxuv = float4(TRANSFORM_TEX(float2(1,1),_TrampleTexture), 0, 0);
+            float4 minuv = float4(0, 0, 0, 0);
+            float4 maxuv = float4(1, 1, 0, 0);
             float4 maxWorldPos = tex2Dlod(_TrampleTexture, maxuv);
             float4 minWorldPos = tex2Dlod(_TrampleTexture, minuv);
-            float4 targetUV = float4(1 -((baseWorldPos.x - minWorldPos.x) / (maxWorldPos.x - minWorldPos.x)),//clamp(baseWorldPos.x, minWorldPos.x, maxWorldPos.x) / maxWorldPos.x),
-                1 -((baseWorldPos.z - minWorldPos.z) / (maxWorldPos.z - minWorldPos.z)), 0, 0);
+            float4 targetUV = float4(1 -((baseWorldPos.x - minWorldPos.x)),// / (maxWorldPos.x - minWorldPos.x)),
+                1 -((baseWorldPos.z - minWorldPos.z)),0,0);// / (maxWorldPos.z - minWorldPos.z)), 0, 0);
             float4 trampleResult = tex2Dlod(_TrampleTexture, targetUV);
-            float3x3 trampleRotation = angleAxis3x3(UNITY_HALF_PI * _TrampleDegree, float3(1, 0, 0));
+            float3x3 trampleRotation = angleAxis3x3(UNITY_HALF_PI * _TrampleDegree * trampleResult.w, float3(1, 0, 0));
 
             // 最终矩阵
             float3x3 lastMatrix = mul(tangentToLocal, mul(windRotation,mul(trampleRotation, mul(rotationMatrix, bowRotationMatrix))));
@@ -201,7 +207,7 @@ Shader "MyShader/MyGrass"
             offsetArray[3] = float4(float3(-perWidth, 0, perHeight), 0);
             offsetArray[4] = float4(float3(perWidth, 0, perHeight * 2), 0);
             offsetArray[5] = float4(float3(-perWidth, 0, perHeight * 2), 0);
-            offsetArray[6] = float4(float3(0, 0, perHeight * 3), 0);
+            offsetArray[6] = float4(float3(0, 0, perHeight * 3 + randposition * 0.3), 0);
 
 
             [unroll]
@@ -223,7 +229,7 @@ Shader "MyShader/MyGrass"
                     TRANSFER_SHADOW(res);
                 #endif
 
-                res.color = lerp(_BottomColor, _TopColor, floor(i / 2) / 3);
+                res.color = lerp(_BottomColor, _TopColor, floor(i / 2) / 3);//maxWorldPos;//baseWorldPos;//targetUV;
                 mTriOut.Append(res);
             }
         }
@@ -249,7 +255,7 @@ Shader "MyShader/MyGrass"
             fixed4 fragmentShaderFunc(FGeometryOut inPoint) : SV_Target
             {   
                 fixed shadow = SHADOW_ATTENUATION(inPoint);
-                return inPoint.color * shadow;
+                return inPoint.color * max(_OffShadowAttenuation, shadow);
             }
             ENDCG
         } 
